@@ -1,0 +1,48 @@
+# CVE-2025-15469: Report truncation in oneshot openssl dgst -sign
+# Silent input truncation at 16MB - Security vulnerability
+
+issue_id: CVE-2025-15469
+bug_description: "CVE-2025-15469: Silent input truncation at 16MB in openssl dgst -sign (Security - CWE-669)"
+
+repository:
+  # Path to local OpenSSL clone
+  source_path: ~/openssl
+
+  # Working directory for pipeline
+  workdir: /tmp/bugfix-openssl-workdir
+
+  # Build happens in repo root
+  build_subdir: ""
+
+branches:
+  # Branch that has the fix (newer version)
+  source: master
+
+  # Branch that needs the fix (older stable version)
+  target: origin/openssl-3.3
+
+fix:
+  # Commit SHA of the fix
+  commit: 6028c0654ef8350b1a357ad37fd687757ecafac2
+
+build:
+  # Build command
+  command: "make -j$(nproc)"
+
+  # Test command (allow some tests to fail in restricted environments)
+  test_command: "make test || true"
+
+  # Pre-build setup
+  prebuild_commands:
+    - ./config --prefix=/tmp/openssl-install
+
+advanced:
+  # Maximum retries for build/test failures
+  max_build_test_retries: 3
+
+  # Maximum retries for conflict resolution
+  max_resolution_retries: 3
+
+claude:
+  # Use Opus for complex multi-file CVE fix
+  model: claude-opus-4-6

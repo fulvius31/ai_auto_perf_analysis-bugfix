@@ -1,0 +1,32 @@
+# Example: Regular Bug Fix (Memory Leak)
+# Shows how to use the pipeline for non-CVE bugs
+
+issue_id: GH-1234
+bug_description: "GH-1234: Fix memory leak in XML attribute parsing"
+
+repository:
+  source_path: ~/libexpat
+  workdir: /tmp/bugfix-workdir
+  build_subdir: expat
+
+branches:
+  source: main
+  target: release-2.5
+
+fix:
+  # This would be the actual commit that fixes the memory leak
+  commit: abc123def
+
+build:
+  command: "make -j$(nproc)"
+  test_command: "make check"
+  prebuild_commands:
+    - ./buildconf.sh
+    - ./configure
+
+# Optional: Use a faster model for simple bugs
+claude:
+  model: claude-sonnet-4-6
+
+output:
+  directory: ./runs

@@ -1,0 +1,31 @@
+# Example: Performance Bug Fix
+# Shows how to port performance optimizations
+
+issue_id: PERF-567
+bug_description: "PERF-567: Optimize quadratic hash table resize"
+
+repository:
+  source_path: ~/my-database
+  workdir: /tmp/bugfix-workdir
+  build_subdir: src
+
+branches:
+  source: develop
+  target: stable-v2
+
+fix:
+  commit: def456abc
+
+build:
+  command: "make -j$(nproc)"
+  # Performance tests to ensure optimization doesn't break correctness
+  test_command: "make test && make benchmark"
+  prebuild_commands:
+    - ./configure --enable-optimizations
+
+advanced:
+  # Performance fixes may need more retries if benchmarks are flaky
+  max_build_test_retries: 5
+
+output:
+  directory: ./runs/performance-fixes

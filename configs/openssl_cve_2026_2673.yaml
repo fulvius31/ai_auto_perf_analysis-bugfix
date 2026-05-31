@@ -1,0 +1,27 @@
+---
+# CVE-2026-2673: TLS 1.3 Group Tuple DEFAULT Expansion
+# Port fix from openssl-3.6 to openssl-3.5
+
+issue_id: "CVE-2026-2673"
+
+bug_description: "TLS 1.3 Group Tuple DEFAULT Expansion - server may fail to negotiate expected preferred key exchange group when using DEFAULT keyword"
+
+repository:
+  source_path: "/home/asangior/openssl"
+
+branches:
+  source: "origin/openssl-3.6"
+  target: "origin/openssl-3.5"
+
+fix:
+  commit: "2157c9d81f7b0bd7dfa25b960e928ec28e8dd63f"
+
+build:
+  command: "./config --prefix=/tmp/openssl-install-3.5 && make -j$(nproc)"
+  test_command: "make test"
+
+model: "claude-opus-4-6"
+
+output:
+  run_dir: "runs/openssl-cve-2026-2673"
+  keep_worktree: false

@@ -1,0 +1,26 @@
+# Example: Crash/Stability Bug Fix
+# Shows how to port fixes for crashes and edge cases
+
+issue_id: PROJ-8901
+bug_description: "PROJ-8901: Fix NULL pointer dereference on empty input"
+
+repository:
+  source_path: ~/parser-project
+  workdir: /tmp/bugfix-workdir
+  build_subdir: ""
+
+branches:
+  source: main
+  target: lts-2024
+
+fix:
+  commit: 789fedcba
+
+build:
+  command: "cmake --build build -j$(nproc)"
+  test_command: "ctest --test-dir build --output-on-failure"
+  prebuild_commands:
+    - cmake -B build -DCMAKE_BUILD_TYPE=Debug
+
+output:
+  directory: ./runs/crash-fixes

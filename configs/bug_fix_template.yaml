@@ -1,0 +1,80 @@
+# Bug Fix Porting Configuration Template
+# Works for CVEs, GitHub issues, Jira tickets, or any bug fix
+
+# ============================================================
+# REQUIRED FIELDS
+# ============================================================
+
+# Issue identification
+# Can be: CVE-YYYY-XXXXX, GH-1234, PROJ-5678, or any unique ID
+issue_id: ISSUE-ID-HERE
+
+# Brief description of the bug/issue
+# Examples:
+#   "CVE-2024-1234: buffer overflow in parser (CWE-119)"
+#   "GH-1234: Fix memory leak in XML parser"
+#   "PROJ-5678: Handle NULL pointer in request handler"
+#   "Fix crash when input file is empty"
+bug_description: "Brief description of the bug"
+
+# Repository configuration
+repository:
+  # Path to local git clone of the project
+  source_path: ~/path/to/project
+
+  # Working directory (pipeline creates isolated copy here)
+  workdir: /tmp/bugfix-workdir
+
+  # Subdirectory where build happens (empty "" for repo root)
+  build_subdir: ""
+
+# Git branches
+branches:
+  # Branch/tag that has the fix (newer version)
+  # Examples: main, develop, v2.1.0, release-2024
+  source: main
+
+  # Branch/tag that needs the fix (older version)
+  # Examples: stable, release-2.0, v2.0.5, lts-2023
+  target: stable
+
+# Fix commit
+fix:
+  # Commit SHA of the fix
+  # Find with: git log --grep="ISSUE-ID" --oneline
+  #        or: git log --grep="fix crash" --oneline
+  commit: abc123def
+
+# Build and test commands
+build:
+  # How to build the project
+  command: "make -j$(nproc)"
+
+  # How to test the project
+  test_command: "make test"
+
+  # Optional: Setup commands before build
+  # prebuild_commands:
+  #   - ./configure
+  #   - cmake -B build
+
+# ============================================================
+# OPTIONAL FIELDS
+# ============================================================
+
+# Advanced settings
+# advanced:
+#   max_build_test_retries: 3
+#   bisect_max_commits: 50
+#   forward_patch_id_lookback: "12 months"
+#   allowlist_rename_expansion_cap: 3
+
+# Claude configuration
+# claude:
+#   model: claude-sonnet-4-6
+#   allowed_tools: [Read, Write, Bash]
+#   perm_mode: acceptEdits
+
+# Output directory
+# output:
+#   directory: ./runs

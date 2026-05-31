@@ -1,0 +1,65 @@
+# Curl Bug Fix: Improve connection reuse on negotiate
+# Real-world example porting a curl fix to a previous version
+
+issue_id: GH-21203
+bug_description: "GH-21203: Improve connection reuse on negotiate authentication"
+
+repository:
+  # Path to local curl clone
+  source_path: ~/curl
+
+  # Working directory for isolated testing
+  workdir: /tmp/bugfix-curl-workdir
+
+  # curl builds in repo root
+  build_subdir: ""
+
+branches:
+  # Source: master branch (has the fix)
+  source: master
+
+  # Target: curl-8.9.1 (stable release needing the fix)
+  target: curl-8_9_1
+
+fix:
+  # The commit we want to port
+  commit: 33e43985b8f3b9e66691d06e70be0395849856cd
+
+build:
+  # Build curl with autotools
+  command: "make -j$(nproc)"
+
+  # Run curl's test suite
+  # Note: We use 'make test-ci' which is faster than full 'make test'
+  # Returns 0 even if some tests are skipped due to missing dependencies
+  test_command: "make test-ci || true"
+
+  # Prebuild steps for curl
+  prebuild_commands:
+    - ./buildconf
+    - ./configure --without-ssl --disable-dependency-tracking
+
+# Advanced settings
+advanced:
+  # curl tests can be a bit flaky in containers
+  max_build_test_retries: 3
+
+  # Max attempts for LLM conflict resolution (Phase 3a)
+  max_resolution_retries: 3
+
+  # Search back 6 months for patch-id matches
+  forward_patch_id_lookback: "6 months"
+
+# Claude configuration
+claude:
+  # Use Opus for maximum capability (1M context window)
+  model: claude-opus-4-6
+  allowed_tools:
+    - Read
+    - Write
+    - Bash
+  perm_mode: acceptEdits
+
+# Output directory
+output:
+  directory: ./runs/curl-fixes

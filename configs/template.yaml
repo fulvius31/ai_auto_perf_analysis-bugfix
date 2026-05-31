@@ -1,0 +1,103 @@
+# Bug Fix Porting Configuration Template
+# Copy this file and customize for your CVE/bug fix
+
+# ============================================================
+# REQUIRED FIELDS
+# ============================================================
+
+# Issue identification
+issue_id: CVE-YYYY-XXXXX
+bug_description: "CVE-YYYY-XXXXX: brief description (CWE-XXX)"
+
+# Repository configuration
+repository:
+  # Path to local git clone of the project
+  # Can use ~ for home directory and $VAR for environment variables
+  source_path: ~/path/to/project
+
+  # Working directory for pipeline (will be created/cleaned)
+  # Pipeline copies source_path here and works in isolation
+  workdir: /tmp/bugfix-workdir
+
+  # Subdirectory within repo where build happens (relative to repo root)
+  # Leave empty ("") if build happens in repo root
+  # Example: "src", "expat", "lib"
+  build_subdir: ""
+
+# Git branches
+branches:
+  # Branch or tag that has the fix (newer version)
+  source: main
+
+  # Branch or tag that needs the fix (older version)
+  target: release-1.0
+
+# Fix commit
+fix:
+  # Commit SHA of the fix (can be merge commit or regular commit)
+  # Pipeline will auto-resolve merge commits to topic branch head
+  # Find this with: git log --grep="CVE-YYYY-XXXXX" --oneline
+  commit: abc123def456
+
+# Build and test commands
+build:
+  # Command to build the project
+  # Use "$(nproc)" for parallel builds
+  command: "make -j$(nproc)"
+
+  # Command to run the test suite
+  # Pipeline compares test results before/after patch for regression testing
+  test_command: "make test"
+
+  # Optional: Pre-build setup commands (e.g., ./autogen.sh, ./configure)
+  # These run before the build in both baseline and post-patch phases
+  # Uncomment and customize if needed:
+  # prebuild_commands:
+  #   - ./autogen.sh
+  #   - ./configure
+  #   - cmake -B build
+
+# ============================================================
+# OPTIONAL FIELDS
+# ============================================================
+
+# Advanced settings (uncomment to customize)
+# advanced:
+#   # Maximum retries for build/test failures in Phase 4
+#   # Claude will attempt to fix build errors, test failures, and allowlist violations
+#   max_build_test_retries: 3
+#
+#   # Maximum retries for LLM conflict resolution in Phase 3a
+#   # Claude will retry resolving cherry-pick conflicts
+#   max_resolution_retries: 3
+#
+#   # Maximum commits to search during bisect
+#   bisect_max_commits: 50
+#
+#   # How far back to search for forward patch-id matches
+#   # Supports: "N days", "N weeks", "N months"
+#   forward_patch_id_lookback: "12 months"
+#
+#   # Maximum number of rename expansions for allowlist
+#   allowlist_rename_expansion_cap: 3
+
+# Claude configuration (uncomment to customize)
+# claude:
+#   # Model to use
+#   # Options: claude-opus-4-6, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5
+#   model: claude-sonnet-4-6
+#
+#   # Tools Claude is allowed to use
+#   allowed_tools:
+#     - Read
+#     - Write
+#     - Bash
+#
+#   # Permission mode
+#   # Options: acceptEdits (auto-approve), interactive (ask each time)
+#   perm_mode: acceptEdits
+
+# Output configuration (uncomment to customize)
+# output:
+#   # Directory where results are saved (tracker JSON, dossier, patches)
+#   directory: ./runs

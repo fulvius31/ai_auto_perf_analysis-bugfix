@@ -120,6 +120,9 @@ def print_ResultMessage(msg: ResultMessage):
         )
     )
 
+    if msg.usage:
+        print("    -- usage = {}".format(msg.usage))
+
     if msg.result is not None:
         print("    -- result = {}".format(msg.result))
 
@@ -143,11 +146,11 @@ def print_Message(msg):
         raise Exception("Unexpected type(msg) = {}".format(type(msg)))
 
 
-async def claude_run(claude_config: ClaudeConfig, prompts: list[str]):
+async def claude_run(claude_config: ClaudeConfig, prompts: list[str], tracker=None):
     assert claude_config.cwd is not None, "claude_config must have CWD set"
 
     print_claude_config(claude_config)
-    
+
     options = ClaudeAgentOptions(
         system_prompt=profile_system_prompt(),
         allowed_tools=claude_config.allowed_tools,
@@ -174,6 +177,17 @@ async def claude_run(claude_config: ClaudeConfig, prompts: list[str]):
             prompt_step += 1
             start_time = time.time()
 
+            prompt_name = ""
+            if isinstance(prompt, str):
+                for marker in ["Phase 0", "Phase 1", "Phase 2", "Phase 3", "Phase 4",
+                               "Triage Agent", "Test Port Agent", "Cherry-Pick Agent",
+                               "Narrow Resolution Agent", "Fix Agent", "Quorum"]:
+                    if marker.lower() in prompt[:200].lower():
+                        prompt_name = marker
+                        break
+                if not prompt_name:
+                    prompt_name = f"query_{prompt_step}"
+
             print("{} SEND QUERY PROMPT:{}".format(Fore.GREEN, Style.RESET_ALL))
             print(
                 "{}============================================{}".format(
@@ -192,9 +206,35 @@ async def claude_run(claude_config: ClaudeConfig, prompts: list[str]):
                     Fore.CYAN, Style.RESET_ALL
                 )
             )
+
+            result_data = {}
             await client.query(prompt)
             async for msg in client.receive_response():
                 print_Message(msg)
+                if isinstance(msg, ResultMessage):
+                    # Extract usage from model_usage dict (per-model breakdown with camelCase keys)
+                    model_usage = msg.model_usage or {}
+
+                    # Get the usage for the current model (keyed by model name in model_usage)
+                    model_stats = {}
+                    if model_usage and claude_config.model in model_usage:
+                        model_stats = model_usage[claude_config.model]
+
+                    input_tokens = model_stats.get("inputTokens", 0) or 0
+                    output_tokens = model_stats.get("outputTokens", 0) or 0
+                    cache_read_tokens = model_stats.get("cacheReadInputTokens", 0) or 0
+
+                    result_data = {
+                        "duration_api_ms": msg.duration_api_ms or 0,
+                        "num_turns": msg.num_turns or 0,
+                        "is_error": msg.is_error or False,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "cache_read_tokens": cache_read_tokens,
+                    }
+
+                    # Log extracted tokens
+                    print(f"Extracted tokens: in={input_tokens}, out={output_tokens}, cache={cache_read_tokens}")
                 print(
                     "{}--------------------------------------------{}".format(
                         Fore.CYAN, Style.RESET_ALL
@@ -206,8 +246,17 @@ async def claude_run(claude_config: ClaudeConfig, prompts: list[str]):
                 )
             )
 
-            duration_time = time.time() - start_time
+            end_time = time.time()
+            duration_time = end_time - start_time
             mins, secs = divmod(int(duration_time), 60)
             hrs, mins = divmod(mins, 60)
             human_time = f"{hrs}h {mins}m {secs}s" if hrs else f"{mins}m {secs}s"
             print("FINISHED STEP {}: duration = {:.1f}s ({})".format(prompt_step, duration_time, human_time))
+
+            if tracker is not None:
+                tracker.record_query(
+                    prompt_name=prompt_name,
+                    start_time=start_time,
+                    end_time=end_time,
+                    **result_data,
+                )

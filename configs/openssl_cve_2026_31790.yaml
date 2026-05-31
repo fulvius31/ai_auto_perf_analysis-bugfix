@@ -1,0 +1,27 @@
+---
+# CVE-2026-31790: RSA KEM validation - provider-side encapsulation can incorrectly succeed
+# Port fix from openssl-3.6 to openssl-3.5
+
+issue_id: "CVE-2026-31790"
+
+bug_description: "RSA KEM validation fix - RSA_public_encrypt() return value not properly validated, allowing encapsulation to incorrectly succeed on failure"
+
+repository:
+  source_path: "/home/asangior/openssl"
+
+branches:
+  source: "origin/openssl-3.6"
+  target: "origin/openssl-3.5"
+
+fix:
+  commit: "abd8b2eec7e3f3fda60ecfb68498b246b52af482"
+
+build:
+  command: "./config --prefix=/tmp/openssl-install-3.5 && make -j$(nproc)"
+  test_command: "make test"
+
+model: "claude-opus-4-6"
+
+output:
+  run_dir: "runs/openssl-cve-2026-31790"
+  keep_worktree: false
