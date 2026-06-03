@@ -29,6 +29,7 @@ class ClaudeConfig:
 
 
 def print_claude_config(config: ClaudeConfig) -> None:
+    """Print ClaudeConfig fields to stdout for logging."""
     class_name = config.__class__.__name__
     print(f"{class_name}:")
 
@@ -39,10 +40,12 @@ def print_claude_config(config: ClaudeConfig) -> None:
 
 
 def profile_system_prompt():
+    """Return the default system prompt for Claude agent sessions."""
     return "You are a benchmarking and profiling expert of LLMs that run via vLLM, SGLang and TRT"
 
 
 def print_dict(d, indent):
+    """Recursively print a dict with indentation."""
     for key, val in d.items():
         if isinstance(val, dict):
             print("{}{} : ".format(indent, key))
@@ -52,6 +55,7 @@ def print_dict(d, indent):
 
 
 def print_ContentBlock(prefix, content):
+    """Print a single SDK content block (text, thinking, tool use, or tool result)."""
     if isinstance(content, TextBlock):
         print("{} {}".format(prefix, content.text))
 
@@ -85,6 +89,7 @@ def print_ContentBlock(prefix, content):
 
 
 def print_UserMessage(msg: UserMessage):
+    """Print a user message with green prefix."""
     prefix = f"{Fore.GREEN}User:{Style.RESET_ALL}"
     if isinstance(msg.content, str):
         print("{} {}".format(prefix, msg.content))
@@ -95,6 +100,7 @@ def print_UserMessage(msg: UserMessage):
 
 
 def print_AssistantMessage(msg: AssistantMessage):
+    """Print an assistant message with cyan prefix."""
     prefix = f"{Fore.CYAN}Claude:{Style.RESET_ALL}"
 
     for block in msg.content:
@@ -106,10 +112,12 @@ def print_AssistantMessage(msg: AssistantMessage):
 
 
 def print_SystemMessage(msg: SystemMessage):
+    """Print a system message showing its subtype and data."""
     print("System: subtype = {} data = {}".format(msg.subtype, msg.data))
 
 
 def print_ResultMessage(msg: ResultMessage):
+    """Print a result message with duration, error status, and usage."""
     print(
         "Result: subtype = {} dur = {} dur_api = {} err = {} num_turns = {}".format(
             msg.subtype,
@@ -128,10 +136,12 @@ def print_ResultMessage(msg: ResultMessage):
 
 
 def print_StreamEvent(msg: StreamEvent):
+    """Print a stream event."""
     print("Stream: event = {}".format(msg.event))
 
 
 def print_Message(msg):
+    """Dispatch a message to the appropriate type-specific printer."""
     if isinstance(msg, UserMessage):
         print_UserMessage(msg)
     elif isinstance(msg, AssistantMessage):
@@ -147,6 +157,7 @@ def print_Message(msg):
 
 
 async def claude_run(claude_config: ClaudeConfig, prompts: list[str], tracker=None):
+    """Send a sequence of prompts to Claude via the SDK, printing responses and recording usage."""
     assert claude_config.cwd is not None, "claude_config must have CWD set"
 
     print_claude_config(claude_config)

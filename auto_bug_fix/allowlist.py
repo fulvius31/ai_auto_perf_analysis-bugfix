@@ -13,6 +13,7 @@ _DEFAULT_TEST_PATTERNS: list[str] = ["test", "tests", "testing", "test_", "spec"
 
 
 def derive_seed(repo_path: str, fix_commit: str) -> list[str]:
+    """Return the list of files touched by the fix commit."""
     return git_show_files(repo_path, fix_commit)
 
 
@@ -23,6 +24,10 @@ def resolve_renames(
     fork_point: str,
     cap: int = 3,
 ) -> tuple[list[str], list[str]]:
+    """Map seed paths to their target-branch equivalents, following renames.
+
+    Returns (resolved_paths, escalated_paths) where escalated paths exceeded the rename cap.
+    """
     resolved: list[str] = []
     escalated: list[str] = []
 
@@ -59,6 +64,7 @@ def enforce_allowlist(
     allowed_modules: list[str],
     disallowed: list[str] | None = None,
 ) -> tuple[bool, list[str]]:
+    """Check that all changed files fall within the allowlist. Returns (ok, violations)."""
     changed = git_diff_name_only(repo_path)
     disallowed = disallowed or []
     violations: list[str] = []
@@ -77,6 +83,7 @@ def enforce_test_file_veto(
     allowed_seed: list[str],
     test_patterns: list[str] | None = None,
 ) -> tuple[bool, list[str]]:
+    """Veto changes to test files not in the original seed. Returns (ok, vetoed_files)."""
     patterns = test_patterns if test_patterns is not None else _DEFAULT_TEST_PATTERNS
     changed = git_diff_name_only(repo_path)
     vetoed: list[str] = []

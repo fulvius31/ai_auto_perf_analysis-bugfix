@@ -23,6 +23,7 @@ def run_positive_control(
     ported_test: str,
     manifest_patch_cmd: str | None = None,
 ) -> tuple[int, str]:
+    """Run the ported test against fix_commit^ to confirm it catches the vulnerability."""
     parent_sha = git_rev_parse(repo_path, f"{fix_commit}^")
     worktree_path = tempfile.mkdtemp(prefix="auto_bug_fix_posctrl_")
     try:

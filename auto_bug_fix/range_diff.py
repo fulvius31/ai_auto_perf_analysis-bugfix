@@ -8,10 +8,12 @@ from auto_bug_fix.git_tools import git_range_diff as _git_range_diff
 
 
 def run_range_diff(repo_path: str, upstream_range: str, ported_range: str) -> str:
+    """Run git range-diff between upstream and ported commit ranges."""
     return _git_range_diff(repo_path, upstream_range, ported_range)
 
 
 def parse_equivalence(range_diff_output: str) -> Literal["identical", "modified", "unmatched"]:
+    """Classify range-diff output as identical, modified, or unmatched."""
     if not range_diff_output.strip():
         return "unmatched"
 

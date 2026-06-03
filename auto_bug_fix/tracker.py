@@ -19,6 +19,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
 
 
 def compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Compute USD cost from token counts using per-model pricing."""
     pricing = MODEL_PRICING.get(model, MODEL_PRICING["claude-opus-4-6"])
     return (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
 
@@ -68,6 +69,7 @@ class PipelineRun:
 
 class Tracker:
     def __init__(self, issue_id: str, config_dict: dict, model: str = "claude-opus-4-6", output_dir: str = "runs"):
+        """Initialize a new pipeline run tracker."""
         self._model = model
         self._output_dir = output_dir
         self._current_phase: PhaseRecord | None = None
@@ -80,6 +82,7 @@ class Tracker:
 
     @contextmanager
     def phase(self, name: str):
+        """Context manager that times a pipeline phase and records its outcome."""
         phase = PhaseRecord(phase=name, start_time=time.monotonic())
         self._current_phase = phase
         try:
@@ -95,6 +98,7 @@ class Tracker:
             self._current_phase = None
 
     def record_gate(self, name: str, decision: str) -> None:
+        """Record a deterministic gate decision in the current phase."""
         if self._current_phase is not None:
             self._current_phase.gate_decisions[name] = decision
 
@@ -110,6 +114,7 @@ class Tracker:
         cache_read_tokens: int = 0,
         is_error: bool = False,
     ) -> QueryRecord:
+        """Record an LLM query with timing, token usage, and cost."""
         duration_s = round(end_time - start_time, 3)
         cost = compute_cost(self._model, input_tokens, output_tokens)
 
@@ -133,9 +138,11 @@ class Tracker:
         return record
 
     def set_outcome(self, outcome: str) -> None:
+        """Set the final pipeline outcome (e.g. 'success', 'escalate')."""
         self._run.outcome = outcome
 
     def _compute_rollups(self) -> None:
+        """Aggregate token counts and costs across all phases."""
         total_queries = 0
         total_input = 0
         total_output = 0
@@ -154,6 +161,7 @@ class Tracker:
         self._run.total_cost_usd = round(total_cost, 6)
 
     def save(self) -> str:
+        """Write the run record to a timestamped JSON file and return its path."""
         self._run.end_time = datetime.now(timezone.utc).isoformat()
         if self._run.phases:
             self._run.total_duration_s = round(
@@ -171,6 +179,7 @@ class Tracker:
         return path
 
     def summary(self) -> str:
+        """Return a formatted table of all phases, queries, gates, and totals."""
         self._compute_rollups()
         run = self._run
         lines = [

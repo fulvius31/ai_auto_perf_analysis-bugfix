@@ -30,6 +30,7 @@ class QuorumResult:
 
 
 def parse_vote(response: str) -> Vote:
+    """Parse an LLM response into a Vote enum (YES, NO, or ABSTAIN)."""
     lower = response.strip().lower()
     for line in lower.splitlines():
         line = line.strip()
@@ -131,6 +132,7 @@ Respond with exactly one line: "Vote: YES", "Vote: NO", or "Vote: ABSTAIN"
 followed by a brief explanation."""
 
     def prompt(self) -> str:
+        """Render the voter prompt for this variant (diff, call_graph, or advisory)."""
         if self.variant == "diff":
             return self.DIFF_TEMPLATE.format(
                 fix_diff=self.fix_diff,
@@ -158,6 +160,7 @@ def create_quorum_prompts(
     advisory_text: str,
     context: str = "",
 ) -> list[QuorumVoterPrompt]:
+    """Create three voter prompts (diff, call_graph, advisory) for quorum voting."""
     return [
         QuorumVoterPrompt(
             variant="diff",
@@ -187,6 +190,7 @@ def tally_votes(
     responses: list[str],
     require_unanimity: bool = True,
 ) -> QuorumResult:
+    """Parse all responses into votes and return the aggregated QuorumResult."""
     votes = [parse_vote(r) for r in responses]
     return QuorumResult(
         votes=votes,

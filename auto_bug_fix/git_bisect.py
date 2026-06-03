@@ -16,6 +16,7 @@ from auto_bug_fix.git_tools import (
 
 
 def create_fixture_cache(test_files: list[str]) -> str:
+    """Copy test files into a temporary directory for bisect isolation."""
     cache_dir = tempfile.mkdtemp(prefix="auto_bug_fix_fixtures_")
     for path in test_files:
         shutil.copy2(path, os.path.join(cache_dir, os.path.basename(path)))
@@ -30,6 +31,7 @@ def create_bisect_wrapper(
     ported_test: str,
     manifest_patch_cmd: str | None = None,
 ) -> str:
+    """Generate a shell script that restores fixtures, builds, and runs one test for git bisect."""
     script_dir = os.path.dirname(fixture_cache)
     script_path = os.path.join(script_dir, "bisect_wrapper.sh")
     content = (
@@ -54,6 +56,7 @@ def run_bisect(
     wrapper_path: str,
     max_commits: int = 200,
 ) -> str | None:
+    """Run git bisect between bad_ref and good_ref. Returns the first bad commit SHA or None."""
     count = git_log_count(repo_path, f"{good_ref}..{bad_ref}")
     if count > max_commits:
         return None

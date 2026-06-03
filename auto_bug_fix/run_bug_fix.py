@@ -88,6 +88,7 @@ def phase_0_triage(
     claude_config: ClaudeConfig,
     state: PipelineState,
 ) -> str:
+    """Run deterministic triage gates (patch-id, ancestry, seed files) and derive the allowlist."""
     repo = config.repo_path
     fix = config.source_fix_commit
     target = config.target_branch
@@ -132,6 +133,7 @@ def phase_1_baseline_red_bisect(
     claude_config: ClaudeConfig,
     state: PipelineState,
 ) -> None:
+    """Capture test baseline, run RED check, and optionally bisect for the introducing commit."""
     repo = config.repo_path
 
     _, baseline_stdout, baseline_stderr = run_test_suite(config.test_command, config.build_dir)
@@ -183,6 +185,7 @@ def phase_1_5_failure_mode(
     claude_config: ClaudeConfig,
     state: PipelineState,
 ) -> str:
+    """Confirm the failure mode matches via signature comparison or quorum vote."""
     if not state.s_target or not state.s_parent:
         return "skip"
 
@@ -220,6 +223,7 @@ def phase_2_cherry_pick(
     config: BugFixConfig,
     state: PipelineState,
 ) -> str:
+    """Attempt cherry-pick with multiple strategies. Returns 'clean', 'conflict', or 'unmappable'."""
     repo = config.repo_path
     fix = config.source_fix_commit
 
@@ -272,6 +276,7 @@ def phase_4_verify(
     config: BugFixConfig,
     state: PipelineState,
 ) -> bool:
+    """Build, test, and check allowlist conformance. Retries up to max_build_test_retries."""
     repo = config.repo_path
 
     for i in range(config.max_build_test_retries):
@@ -298,6 +303,7 @@ def phase_4_5_semantic_equivalence(
     config: BugFixConfig,
     state: PipelineState,
 ) -> str:
+    """Run range-diff to classify the port as identical, modified, or unmatched."""
     repo = config.repo_path
     try:
         rd_output = run_range_diff(
@@ -320,6 +326,7 @@ def run_pipeline(
     claude_config: ClaudeConfig | None = None,
     output_dir: str = "runs",
 ) -> tuple[Dossier, Tracker]:
+    """Orchestrate the full pipeline: triage, baseline, cherry-pick, resolve, verify, equivalence."""
     if config is None:
         from auto_bug_fix.bug_fix_config import bug_fix_config as _default
         config = _default

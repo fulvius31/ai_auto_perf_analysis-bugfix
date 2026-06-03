@@ -39,9 +39,11 @@ class Dossier:
     fix_explanation: str = ""
 
     def add(self, label: str, content: str, source: str) -> None:
+        """Append a labelled evidence item to the dossier."""
         self.items.append(DossierItem(label=label, content=content, source=source))
 
     def add_strategy(self, strategy: str, outcome: str, commentary: str = "") -> None:
+        """Record a cherry-pick strategy attempt and its outcome."""
         self.strategies.append(StrategyAttempt(
             strategy=strategy, outcome=outcome, commentary=commentary,
         ))
@@ -69,6 +71,7 @@ def build_trailers(
     strategies_tried: str | None = None,
     bisect_sha: str | None = None,
 ) -> dict[str, str]:
+    """Build git commit trailer dict for the ported fix commit."""
     trailers = {
         "AutoBugFix-Phase": phase,
         "AutoBugFix-Model": model,
@@ -83,6 +86,7 @@ def build_trailers(
 
 
 def format_dossier(dossier: Dossier) -> str:
+    """Render the dossier as a human-readable Markdown string."""
     lines = [
         f"# Bug-Fix Porting Dossier: {dossier.issue_id}",
         "",

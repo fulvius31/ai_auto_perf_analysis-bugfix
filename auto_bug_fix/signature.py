@@ -7,6 +7,7 @@ from typing import Literal
 
 
 def capture_output(cmd: list[str], cwd: str) -> tuple[int, str]:
+    """Run a shell command and return (exit_code, combined_stdout_stderr)."""
     result = subprocess.run(
         " ".join(cmd),
         cwd=cwd,
@@ -19,6 +20,7 @@ def capture_output(cmd: list[str], cwd: str) -> tuple[int, str]:
 
 
 def normalize_signature(raw: str) -> str:
+    """Strip volatile tokens (addresses, PIDs, timestamps, line numbers) to create a comparable signature."""
     s = raw
 
     # Pointer addresses
@@ -51,6 +53,7 @@ def normalize_signature(raw: str) -> str:
 def compare_signatures(
     s_target: str, s_parent: str
 ) -> Literal["match", "partial", "mismatch"]:
+    """Compare two failure signatures after normalization using Jaccard similarity."""
     norm_target = normalize_signature(s_target)
     norm_parent = normalize_signature(s_parent)
 

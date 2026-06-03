@@ -14,6 +14,7 @@ _OUTPUT_DIR_PREFIX = "./auto_analyze/results/results_analyze_"
 
 
 def test_name_from_run_config(run_config: str) -> str:
+    """Extract the test name from a run_<name>.json config filename."""
     basename = os.path.basename(run_config)
     if not basename.startswith("run_") or not basename.endswith(".json"):
         raise ValueError(
@@ -23,10 +24,12 @@ def test_name_from_run_config(run_config: str) -> str:
 
 
 def output_dir_from_run_config(run_config: str) -> str:
+    """Derive the analysis output directory path from a run config filename."""
     return _OUTPUT_DIR_PREFIX + test_name_from_run_config(run_config)
 
 
 def setup_logging(name: str) -> None:
+    """Redirect stdout to both the console and a log file."""
     os.makedirs(LOGS_DIR, exist_ok=True)
     log_path = os.path.join(LOGS_DIR, "run_{}.log".format(name))
     log_file = open(log_path, "w")
@@ -40,6 +43,7 @@ class Tee(object):
         self.files = files
 
     def write(self, obj):
+        """Write obj to all wrapped files, ignoring BlockingIOError."""
         for f in self.files:
             try:
                 f.write(obj)
@@ -48,6 +52,7 @@ class Tee(object):
                 pass
 
     def flush(self):
+        """Flush all wrapped files, ignoring BlockingIOError."""
         for f in self.files:
             try:
                 f.flush()
