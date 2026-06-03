@@ -41,12 +41,18 @@ class Tee(object):
 
     def write(self, obj):
         for f in self.files:
-            f.write(obj)
-            f.flush()  # Ensure immediate writing
+            try:
+                f.write(obj)
+                f.flush()
+            except BlockingIOError:
+                pass
 
     def flush(self):
         for f in self.files:
-            f.flush()
+            try:
+                f.flush()
+            except BlockingIOError:
+                pass
 
 
 _SENSITIVE_DIRS = frozenset({

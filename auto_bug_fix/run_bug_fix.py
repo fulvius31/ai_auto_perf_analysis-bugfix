@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import subprocess
 import sys
 import time
 import asyncio
@@ -108,13 +109,20 @@ def phase_0_triage(
     if fwd:
         raise PipelineStop(f"Fix already present on target as {fwd}")
 
-    from auto_bug_fix.git_tools import git_is_ancestor
+    from auto_bug_fix.git_tools import git_is_ancestor, git_cat_file_exists
     blame_candidate = None
     bwd = backward_patch_id_check(repo, fix, target, config.forward_patch_id_lookback)
     is_ancestor = git_is_ancestor(repo, fix, target)
 
     if not is_ancestor and not bwd:
-        raise PipelineStop("Target branch is not affected (no ancestry, no patch-id match)")
+        # Before stopping, check if any seed files exist on target branch.
+        # Branches may diverge but still share the vulnerable code.
+        seed_exists_on_target = any(
+            git_cat_file_exists(repo, target, f) for f in state.seed
+        )
+        if not seed_exists_on_target:
+            raise PipelineStop("Target branch is not affected (no ancestry, no patch-id match, no seed files)")
+        log.info("Ancestry/patch-id checks failed but seed files exist on target — proceeding with caution")
 
     return "proceed"
 
@@ -133,8 +141,11 @@ def phase_1_baseline_red_bisect(
         [config.test_command], config.build_dir,
     )
     if red_exit == 0:
-        raise PipelineEscalation("RED check passed — target may already be fixed or test is inapplicable")
-    state.s_target = normalize_signature(red_output)
+        if state.ported_test_files:
+            raise PipelineEscalation("RED check passed — target may already be fixed or test is inapplicable")
+        log.info("Baseline tests pass (no ported vulnerability test available) — proceeding")
+    else:
+        state.s_target = normalize_signature(red_output)
 
     if state.fixture_cache and state.ported_test_files:
         pc_exit, pc_output = run_positive_control(
@@ -362,6 +373,64 @@ def run_pipeline(
         tracker.save()
         raise PipelineEscalation("Unmappable cherry-pick — human intervention required")
 
+    if cp_result == "conflict":
+        with tracker.phase("Phase 3a — Conflict resolution"):
+            fix_diff = subprocess.run(
+                ["git", "show", config.source_fix_commit],
+                cwd=config.repo_path, capture_output=True, text=True,
+            ).stdout
+
+            MAX_DIFF_CHARS = 200_000
+            if len(fix_diff) > MAX_DIFF_CHARS:
+                log.warning("fix_diff too large (%d chars), using --stat + conflicted file diffs only", len(fix_diff))
+                stat = subprocess.run(
+                    ["git", "show", "--stat", config.source_fix_commit],
+                    cwd=config.repo_path, capture_output=True, text=True,
+                ).stdout
+                status_lines = git_status_porcelain(config.repo_path)
+                uu_paths = [l[3:] for l in status_lines if l.startswith("UU ") or l.startswith("AA ")]
+                partial_diff = subprocess.run(
+                    ["git", "show", config.source_fix_commit, "--"] + uu_paths,
+                    cwd=config.repo_path, capture_output=True, text=True,
+                ).stdout
+                fix_diff = stat + "\n\n--- Partial diff (conflicted files only) ---\n\n" + partial_diff
+                if len(fix_diff) > MAX_DIFF_CHARS:
+                    fix_diff = fix_diff[:MAX_DIFF_CHARS] + "\n\n[TRUNCATED — diff too large]"
+
+            status = git_status_porcelain(config.repo_path)
+            uu_files = [l[3:] for l in status if l.startswith("UU ") or l.startswith("AA ")]
+
+            context = create_context_str(claude_config, config)
+            prompt = NarrowResolutionAgentPrompt(
+                fix_diff=fix_diff,
+                conflicted_files=uu_files,
+                context=context,
+                allowed_modules=state.allowed_modules,
+            )
+
+            claude_config_3a = ClaudeConfig(
+                model=claude_config.model,
+                allowed_tools=claude_config.allowed_tools,
+                perm_mode=claude_config.perm_mode,
+                cwd=config.repo_path,
+            )
+
+            for attempt in range(1, config.max_resolution_retries + 1):
+                log.info("Phase 3a attempt %d/%d — resolving %d conflicts: %s",
+                         attempt, config.max_resolution_retries, len(uu_files), ", ".join(uu_files))
+                asyncio.run(claude_run(claude_config_3a, [prompt.prompt()], tracker=tracker))
+
+                remaining = git_status_porcelain(config.repo_path)
+                still_conflicted = [l for l in remaining if l.startswith("UU ") or l.startswith("AA ")]
+                if not still_conflicted:
+                    git_commit(config.repo_path, f"Port fix for {config.issue_id}\n\nResolved by Claude ({attempt} attempt(s))")
+                    state.dossier.add("Resolution", f"Resolved on attempt {attempt}", "Phase 3a")
+                    break
+                log.warning("Attempt %d: %d conflicts remain", attempt, len(still_conflicted))
+                uu_files = [l[3:] for l in still_conflicted]
+            else:
+                raise PipelineEscalation(f"Phase 3a failed after {config.max_resolution_retries} attempts")
+
     with tracker.phase("Phase 4 — Verify"):
         phase_4_verify(config, state)
         tracker.record_gate("verify", "passed")
@@ -410,16 +479,28 @@ if __name__ == "__main__":
 
         bug_fix_config, claude_config, workdir, source_path, _, _ = load_pipeline_config(config_path)
 
-        # Set up worktree for this CVE
+        # Set up worktree for this CVE (avoids copying multi-GB repos)
         os.makedirs(workdir, exist_ok=True)
-        repo_name = os.path.basename(source_path)
-        worktree_path = os.path.join(workdir, repo_name)
+        worktree_path = os.path.join(workdir, bug_fix_config.issue_id)
 
-        # Copy source repo to workdir if it doesn't exist
-        if not os.path.exists(worktree_path):
-            print(f"Copying {source_path} to {worktree_path}...")
-            shutil.copytree(source_path, worktree_path)
-            print(f"Repository copied successfully")
+        if os.path.exists(worktree_path):
+            print(f"Worktree already exists at {worktree_path}, removing...")
+            from auto_bug_fix.worktree import cleanup_worktree
+            cleanup_worktree(source_path, worktree_path)
+            if os.path.exists(worktree_path):
+                shutil.rmtree(worktree_path)
+
+        target_branch = bug_fix_config.target_branch
+        print(f"Creating worktree at {worktree_path} on {target_branch}...")
+        from auto_bug_fix.git_tools import git_worktree_add
+        result = git_worktree_add(source_path, worktree_path, target_branch)
+        if not result.success:
+            print(f"ERROR: git worktree add failed: {result.stderr}")
+            sys.exit(1)
+        print(f"Worktree created successfully")
+
+        bug_fix_config.repo_path = worktree_path
+        bug_fix_config.build_dir = worktree_path
     else:
         from auto_bug_fix.bug_fix_config import claude_config, bug_fix_config
 

@@ -8,11 +8,12 @@ from typing import Literal
 
 def capture_output(cmd: list[str], cwd: str) -> tuple[int, str]:
     result = subprocess.run(
-        cmd,
+        " ".join(cmd),
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        shell=True,
     )
     return (result.returncode, result.stdout)
 

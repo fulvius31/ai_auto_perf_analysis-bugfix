@@ -153,9 +153,10 @@ def parse_claude_config(config: dict[str, Any], output_dir: str) -> ClaudeConfig
         ClaudeConfig dataclass
     """
     claude = config.get("claude", {})
+    model = claude.get("model") or config.get("model") or "claude-sonnet-4-6"
 
     return ClaudeConfig(
-        model=claude.get("model", "claude-sonnet-4-6"),
+        model=model,
         allowed_tools=claude.get("allowed_tools", ["Read", "Write", "Bash"]),
         perm_mode=claude.get("perm_mode", "acceptEdits"),
         cwd=output_dir,
